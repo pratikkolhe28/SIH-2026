@@ -7,8 +7,8 @@
 ---
 
 ## 🌐 Live Interactive Application
-> ### 🚀 **[Click Here to Open Live Website](https://shed-measurements-belongs-funny.trycloudflare.com)**
-> *Test live leaf disease diagnosis (Tomato, Potato, Cotton), multilingual advice (Marathi/Hindi/English), and the Maharashtra outbreak surveillance map.*
+> ### 🚀 **[Click Here to Open Live Website (Vercel)](https://sih-2026-akc4fuwcr-pratikkolhe28.vercel.app)**
+> *Permanent Cloud Deployment on Vercel — Farmer leaf diagnosis, multilingual advisories (Marathi/Hindi/English), and Maharashtra outbreak surveillance grid.*
 
 ---
 
