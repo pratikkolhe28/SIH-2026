@@ -7,7 +7,7 @@
 ---
 
 ## 🌐 Live Interactive Application
-> ### 🚀 **[Click Here to Open Live Website](https://implementation-farmers-last-prepaid.trycloudflare.com)**
+> ### 🚀 **[Click Here to Open Live Website](https://shed-measurements-belongs-funny.trycloudflare.com)**
 > *Test live leaf disease diagnosis (Tomato, Potato, Cotton), multilingual advice (Marathi/Hindi/English), and the Maharashtra outbreak surveillance map.*
 
 ---
