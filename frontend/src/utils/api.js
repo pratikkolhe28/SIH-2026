@@ -1,6 +1,6 @@
 // API Client for SIH PS 26131 Crop Surveillance Backend
 
-const API_BASE = "";
+export const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export async function fetchHealth() {
   const res = await fetch(`${API_BASE}/api/health`);
@@ -61,7 +61,14 @@ export async function fetchSurveillanceStats() {
 
 export async function fetchPresetSamples() {
   const res = await fetch(`${API_BASE}/api/samples`);
-  return res.json();
+  const data = await res.json();
+  if (data && data.samples && API_BASE) {
+    data.samples = data.samples.map(s => ({
+      ...s,
+      image_url: s.image_url && !s.image_url.startsWith("http") ? `${API_BASE}${s.image_url}` : s.image_url
+    }));
+  }
+  return data;
 }
 
 export async function flagReportForExpert(reportId, flag = true) {
