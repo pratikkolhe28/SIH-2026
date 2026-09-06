@@ -6,6 +6,12 @@
 
 ---
 
+## 🌐 Live Interactive Application
+> ### 🚀 **[Click Here to Open Live Website](https://prep-baths-cohen-advisory.trycloudflare.com)**
+> *Test live leaf disease diagnosis (Tomato, Potato, Cotton), multilingual advice (Marathi/Hindi/English), and the Maharashtra outbreak surveillance map.*
+
+---
+
 ## 🌾 One-Line Concept
 > **A farmer photographs a diseased crop/pest → gets instant AI diagnosis + multilingual treatment advice (Marathi/Hindi/English) → the report is automatically geotagged and aggregated on a live surveillance map so agricultural extension officials can detect outbreak hotspots early and intervene before epidemics spread.**
 
