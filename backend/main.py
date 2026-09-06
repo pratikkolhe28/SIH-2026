@@ -353,3 +353,10 @@ def trigger_model_retrain_loop(trigger_reason: str = "field_confirmations_thresh
         "status": "Queued for nocturnal batch retraining",
         "trigger": trigger_reason
     }
+
+
+# Mount built React frontend if dist directory exists (for 1-click full-stack cloud deployment)
+FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+if os.path.exists(FRONTEND_DIST):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend_dist")
+
