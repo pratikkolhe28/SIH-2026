@@ -1,9 +1,11 @@
 import React from "react";
-import { Sprout, ShieldAlert, Activity, Globe } from "lucide-react";
+import { Sprout, ShieldAlert, Globe, UserRound, LogOut, Sun, Moon } from "lucide-react";
 import { TRANSLATIONS } from "../translations";
 
-export default function Header({ currentTab, setCurrentTab, lang, setLang, backendHealthy }) {
+export default function Header({ currentTab, setCurrentTab, lang, setLang, backendHealthy, backendChecked, user, onSignIn, onSignOut, theme, onToggleTheme }) {
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  const signInLabel = lang === "mr" ? "साइन इन" : lang === "hi" ? "साइन इन" : "Sign in";
+  const signOutLabel = lang === "mr" ? "बाहेर पडा" : lang === "hi" ? "साइन आउट" : "Sign out";
 
   return (
     <header className="header-glass">
@@ -42,7 +44,7 @@ export default function Header({ currentTab, setCurrentTab, lang, setLang, backe
 
       <div className="header-actions">
         <div className="lang-selector-pills" title="Select Language">
-          <Globe size={15} style={{ alignSelf: "center", marginLeft: "4px", color: "#94a3b8" }} />
+          <Globe size={15} className="header-globe-icon" />
           <button
             className={`lang-pill-btn ${lang === "mr" ? "active" : ""}`}
             onClick={() => setLang("mr")}
@@ -66,9 +68,28 @@ export default function Header({ currentTab, setCurrentTab, lang, setLang, backe
           </button>
         </div>
 
-        <div className="live-pulse-badge" title="PyTorch CNN & Hotspot Engine Online">
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          onClick={onToggleTheme}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        >
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+
+        {user ? (
+          <div className="account-chip" title={`${user.full_name} · ${user.district || "Farmer account"}`}>
+            <span className="account-avatar"><UserRound size={16} /></span>
+            <span className="account-copy"><strong>{user.full_name.split(" ")[0]}</strong><small>{user.district || "Farmer account"}</small></span>
+            <button type="button" onClick={onSignOut} aria-label={signOutLabel} title={signOutLabel} className="account-signout"><LogOut size={16} /></button>
+          </div>
+        ) : (
+          <button type="button" className="header-signin-btn" onClick={onSignIn}><UserRound size={16} /><span>{signInLabel}</span></button>
+        )}
+        <div className={`live-pulse-badge ${backendChecked && !backendHealthy ? "status-offline" : ""} ${!backendChecked ? "status-checking" : ""}`} title={backendHealthy ? "Backend services are reachable" : backendChecked ? "Backend is not reachable. Start the backend and refresh." : "Checking backend connection"} role="status" aria-live="polite">
           <span className="pulse-dot"></span>
-          <span>{backendHealthy ? t.live_status : "Connecting..."}</span>
+          <span>{backendHealthy ? (lang === "mr" ? "सेवा सुरू" : lang === "hi" ? "सेवा चालू" : "Services online") : backendChecked ? (lang === "mr" ? "सेवा ऑफलाइन" : lang === "hi" ? "सेवा ऑफलाइन" : "Service offline") : (lang === "mr" ? "तपासत आहे…" : lang === "hi" ? "जाँच रहे हैं…" : "Checking…")}</span>
         </div>
       </div>
     </header>

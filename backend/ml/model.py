@@ -57,238 +57,114 @@ class DiseaseInferenceEngine:
         self._initialize_or_load_weights()
 
     def _initialize_or_load_weights(self):
+        self.weights_loaded = False
         if os.path.exists(MODEL_PATH):
             try:
-                state_dict = torch.load(MODEL_PATH, map_location=self.device)
+                try:
+                    state_dict = torch.load(MODEL_PATH, map_location=self.device, weights_only=True)
+                except TypeError:  # compatibility with older PyTorch releases
+                    state_dict = torch.load(MODEL_PATH, map_location=self.device)
                 self.model.load_state_dict(state_dict)
-                print(f"[ML] Successfully loaded model weights from {MODEL_PATH}")
+                self.weights_loaded = True
+                print(f"[ML] Loaded checkpoint from {MODEL_PATH}; validation/calibration status must be established separately.")
                 return
             except Exception as e:
-                print(f"[ML] Failed to load checkpoint: {e}. Reinitializing calibrated weights.")
-        
-        # Calibrate initial weights for high quality demo inference
+                print(f"[ML] Checkpoint could not be loaded: {e}. Using untrained fallback weights; predictions are demonstration-only.")
+
+        # Do not describe random initialization as trained or calibrated.
         torch.manual_seed(42)
         for m in self.model.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0.0)
-        
-        # Save baseline calibrated weights
-        try:
-            torch.save(self.model.state_dict(), MODEL_PATH)
-            print(f"[ML] Initialized and saved model weights to {MODEL_PATH}")
-        except Exception as e:
-            print(f"[ML] Note: Could not save weights file: {e}")
 
     def _analyze_leaf_features(self, pil_img: Image.Image, filename: str = ""):
-        """
-        Extract agricultural visual indicators (necrotic spots, yellowing/chlorosis,
-        leaf texture, and green health ratio) from image pixels.
-        Also parses semantic hints from filename if user uploaded test images.
-        """
+        """Extract simple colour indicators for context; these are not disease proof."""
         img_np = np.array(pil_img.convert("RGB"))
         r = img_np[:, :, 0].astype(float)
         g = img_np[:, :, 1].astype(float)
         b = img_np[:, :, 2].astype(float)
-        
-        # Health green index
         green_excess = (2 * g - r - b) / (2 * g + r + b + 1e-6)
         healthy_green_ratio = np.mean(green_excess > 0.15)
-        
-        # Necrotic brown/dark lesion index (Early/Late Blight or Bacterial Black Arm)
         necrotic_ratio = np.mean((r > 50) & (r < 185) & (g < 145) & (b < 110) & (r > g + 10))
-        
-        # Chlorosis / Yellow halo / Leaf Curl index
         yellow_ratio = np.mean((r > 155) & (g > 145) & (b < 115) & (r + g > 2 * b + 40))
-        
-        # Cotton darker deep-green trait vs Tomato yellow-green trait
         dark_green_ratio = np.mean((g > r + 15) & (g > b + 10) & (g < 130))
-
-        # Check filename for crop keywords
-        fn_lower = filename.lower()
-        detected_crop = None
-        if any(k in fn_lower for k in ["cotton", "kapas", "kapus"]):
-            detected_crop = "Cotton"
-        elif any(k in fn_lower for k in ["potato", "aloo", "batata"]):
-            detected_crop = "Potato"
-        elif any(k in fn_lower for k in ["tomato", "tamatar"]):
-            detected_crop = "Tomato"
-
-        # Check filename for disease keywords
-        detected_disease = None
-        if any(k in fn_lower for k in ["late_blight", "late", "rot", "phytophthora"]):
-            detected_disease = "late_blight"
-        elif any(k in fn_lower for k in ["early_blight", "early", "alternaria"]):
-            detected_disease = "early_blight"
-        elif any(k in fn_lower for k in ["curl", "whitefly", "virus", "sucking"]):
-            detected_disease = "leaf_curl"
-        elif any(k in fn_lower for k in ["bacterial", "black_arm", "spot", "xanthomonas"]):
-            detected_disease = "bacterial"
-        elif any(k in fn_lower for k in ["healthy", "clean", "fresh"]):
-            detected_disease = "healthy"
-
-        # Exact class match from demo presets
-        hint_id = None
-        for cls_item in CLASSES:
-            c_id = cls_item["id"]
-            if c_id in fn_lower:
-                hint_id = c_id
-                break
-
         return {
             "healthy_green_ratio": float(healthy_green_ratio),
             "necrotic_ratio": float(necrotic_ratio),
             "yellow_ratio": float(yellow_ratio),
             "dark_green_ratio": float(dark_green_ratio),
-            "detected_crop": detected_crop,
-            "detected_disease": detected_disease,
-            "hint_id": hint_id
         }
 
     def predict(self, image_bytes: bytes, filename: str = "", crop_filter: str = None):
-        """
-        Run inference on image bytes, return prediction with top classes and confidence.
+        """Return transparent model scores; filenames never influence the diagnosis.
+
+        The current repository checkpoint has no bundled held-out validation report,
+        so these values are model scores, not a claim of calibrated real-world accuracy.
         """
         try:
-            pil_img = Image.open(io.BytesIO(image_bytes))
+            pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         except Exception as e:
             raise ValueError(f"Invalid image file: {str(e)}")
 
-        leaf_features = self._analyze_leaf_features(pil_img, filename)
-        input_tensor = self.transform(pil_img.convert("RGB")).unsqueeze(0).to(self.device)
-
+        leaf_features = self._analyze_leaf_features(pil_img)
+        input_tensor = self.transform(pil_img).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            outputs = self.model(input_tensor)
-            probs = torch.softmax(outputs, dim=1).squeeze(0).numpy()
+            logits = self.model(input_tensor).squeeze(0).cpu().numpy()
 
-        adjusted_scores = np.copy(probs)
-
-        # 1. Determine Target Crop Priority
-        active_crop = None
-        if crop_filter and crop_filter.strip().lower() in ["tomato", "potato", "cotton"]:
-            active_crop = crop_filter.strip().title()
-        elif leaf_features["detected_crop"]:
-            active_crop = leaf_features["detected_crop"]
-        else:
-            # Automatic visual crop determination based on leaf morphology & hue
-            if leaf_features["dark_green_ratio"] > 0.25 or leaf_features["yellow_ratio"] > 0.15:
-                active_crop = "Cotton"
-            elif leaf_features["necrotic_ratio"] > 0.08 and leaf_features["healthy_green_ratio"] > 0.40:
-                active_crop = "Potato"
-            else:
-                active_crop = "Tomato"
-
-        # 2. Strict Crop Isolation if crop is determined
-        if active_crop:
-            for i, cls_meta in enumerate(CLASSES):
-                if cls_meta["crop"].lower() != active_crop.lower():
-                    adjusted_scores[i] -= 100.0  # Strongly penalize non-matching crops
-
-        # 3. Disease Classification within Crop
-        hint_id = leaf_features["hint_id"]
-        det_dis = leaf_features["detected_disease"]
-
-        if hint_id and hint_id in CLASS_INDEX:
-            adjusted_scores[CLASS_INDEX[hint_id]] += 15.0
-        elif det_dis:
-            # Match detected disease within active crop
-            target_class_id = None
-            if active_crop == "Potato":
-                if det_dis == "late_blight": target_class_id = "potato_late_blight"
-                elif det_dis == "healthy": target_class_id = "potato_healthy"
-                else: target_class_id = "potato_early_blight"
-            elif active_crop == "Cotton":
-                if det_dis == "leaf_curl": target_class_id = "cotton_leaf_curl"
-                elif det_dis == "healthy": target_class_id = "cotton_healthy"
-                else: target_class_id = "cotton_bacterial_blight"
-            else: # Tomato
-                if det_dis == "late_blight": target_class_id = "tomato_late_blight"
-                elif det_dis == "bacterial": target_class_id = "tomato_bacterial_spot"
-                elif det_dis == "healthy": target_class_id = "tomato_healthy"
-                else: target_class_id = "tomato_early_blight"
-
-            if target_class_id and target_class_id in CLASS_INDEX:
-                adjusted_scores[CLASS_INDEX[target_class_id]] += 12.0
-        else:
-            # Visual Symptom Rules based on Necrotic / Chlorosis / Health ratios
-            necrotic = leaf_features["necrotic_ratio"]
-            yellow = leaf_features["yellow_ratio"]
-            healthy = leaf_features["healthy_green_ratio"]
-
-            if active_crop == "Potato":
-                if necrotic > 0.12:
-                    adjusted_scores[CLASS_INDEX["potato_late_blight"]] += 8.0
-                elif necrotic > 0.04 or yellow > 0.05:
-                    adjusted_scores[CLASS_INDEX["potato_early_blight"]] += 8.0
-                else:
-                    adjusted_scores[CLASS_INDEX["potato_healthy"]] += 8.0
-            elif active_crop == "Cotton":
-                if yellow > 0.08 or (yellow > necrotic and yellow > 0.04):
-                    adjusted_scores[CLASS_INDEX["cotton_leaf_curl"]] += 8.0
-                elif necrotic > 0.04:
-                    adjusted_scores[CLASS_INDEX["cotton_bacterial_blight"]] += 8.0
-                else:
-                    adjusted_scores[CLASS_INDEX["cotton_healthy"]] += 8.0
-            else: # Tomato
-                if necrotic > 0.12:
-                    adjusted_scores[CLASS_INDEX["tomato_late_blight"]] += 8.0
-                elif necrotic > 0.04:
-                    adjusted_scores[CLASS_INDEX["tomato_early_blight"]] += 8.0
-                elif yellow > 0.10:
-                    adjusted_scores[CLASS_INDEX["tomato_bacterial_spot"]] += 8.0
-                else:
-                    adjusted_scores[CLASS_INDEX["tomato_healthy"]] += 8.0
-
-        # Normalize adjusted scores to probabilities
-        exp_scores = np.exp(adjusted_scores - np.max(adjusted_scores))
-        final_probs = exp_scores / np.sum(exp_scores)
-
-        # Calibrate top confidence between 92.5% and 97.8%
-        top_idx = int(np.argmax(final_probs))
-        raw_conf = float(final_probs[top_idx])
-        
-        variance = (abs(hash(top_class_id := CLASSES[top_idx]["id"])) % 45) / 1000.0
-        base_conf = 0.932 + variance
-        calibrated_conf = min(0.982, max(base_conf, raw_conf))
-        
+        # A user-selected crop is a valid constraint; do not infer crop from filenames
+        # or force a diagnosis based on hand-written colour thresholds.
+        active_crop = crop_filter.strip().title() if crop_filter and crop_filter.strip().lower() in {"tomato", "potato", "cotton"} else None
+        eligible = [i for i, item in enumerate(CLASSES) if not active_crop or item["crop"].lower() == active_crop.lower()]
+        eligible_logits = logits[eligible]
+        shifted = eligible_logits - np.max(eligible_logits)
+        probs = np.exp(shifted) / np.sum(np.exp(shifted))
+        order = np.argsort(probs)[::-1]
+        top_idx = eligible[int(order[0])]
         top_class = CLASSES[top_idx]
+        top_probability = float(probs[order[0]])
+        margin = top_probability - (float(probs[order[1]]) if len(order) > 1 else 0.0)
 
-        # Top 3 predictions
-        sorted_indices = np.argsort(final_probs)[::-1]
+        # Untrained fallback weights must never be presented as a reliable diagnosis.
+        if not self.weights_loaded:
+            confidence_level = "unvalidated_model"
+            next_step = "Model checkpoint is unavailable or untrained. Use expert review; do not act on this result alone."
+        elif top_probability < 0.45 or margin < 0.10:
+            confidence_level = "uncertain"
+            next_step = "The image result is inconclusive. Capture a clear image of both leaf surfaces and request expert verification."
+        else:
+            confidence_level = "model_suggested"
+            next_step = "Treat this as a preliminary screening result. Confirm field symptoms and local guidance before treatment."
+
         top_3 = []
-        for rank, idx in enumerate(sorted_indices[:3]):
-            c = CLASSES[idx]
+        for rank, pos in enumerate(order[:3]):
+            cls_meta = CLASSES[eligible[int(pos)]]
             top_3.append({
                 "rank": rank + 1,
-                "id": c["id"],
-                "crop": c["crop"],
-                "disease": c["disease"],
-                "confidence": round(float(final_probs[idx]) if rank > 0 else calibrated_conf, 4)
+                "id": cls_meta["id"],
+                "crop": cls_meta["crop"],
+                "disease": cls_meta["disease"],
+                "confidence": round(float(probs[pos]), 4),
             })
 
         return {
-            "id": top_class["id"],
-            "crop": top_class["crop"],
-            "crop_mr": top_class["crop_mr"],
-            "crop_hi": top_class["crop_hi"],
-            "disease": top_class["disease"],
-            "disease_mr": top_class["disease_mr"],
-            "disease_hi": top_class["disease_hi"],
-            "pathogen": top_class["pathogen"],
-            "type": top_class["type"],
-            "severity": top_class["severity"],
-            "confidence": round(calibrated_conf, 3),
-            "confidence_pct": f"{round(calibrated_conf * 100, 1)}%",
-            "symptoms": top_class["symptoms"],
-            "symptoms_mr": top_class["symptoms_mr"],
-            "symptoms_hi": top_class["symptoms_hi"],
-            "top_predictions": top_3,
+            "id": top_class["id"], "crop": top_class["crop"],
+            "crop_mr": top_class["crop_mr"], "crop_hi": top_class["crop_hi"],
+            "disease": top_class["disease"], "disease_mr": top_class["disease_mr"],
+            "disease_hi": top_class["disease_hi"], "pathogen": top_class["pathogen"],
+            "type": top_class["type"], "severity": top_class["severity"],
+            "confidence": round(top_probability, 4),
+            "confidence_pct": f"{round(top_probability * 100, 1)}%",
+            "confidence_level": confidence_level, "recommended_next_step": next_step,
+            "model_status": "checkpoint_loaded_unvalidated" if self.weights_loaded else "untrained_fallback",
+            "symptoms": top_class["symptoms"], "symptoms_mr": top_class["symptoms_mr"],
+            "symptoms_hi": top_class["symptoms_hi"], "top_predictions": top_3,
             "visual_indicators": {
                 "necrotic_lesion_pct": round(leaf_features["necrotic_ratio"] * 100, 1),
                 "chlorosis_yellow_pct": round(leaf_features["yellow_ratio"] * 100, 1),
-                "healthy_tissue_pct": round(leaf_features["healthy_green_ratio"] * 100, 1)
-            }
+                "healthy_tissue_pct": round(leaf_features["healthy_green_ratio"] * 100, 1),
+            },
         }
 
 

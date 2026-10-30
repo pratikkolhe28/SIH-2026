@@ -37,3 +37,6 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Local farmer account database (created automatically by the backend)
+backend/farmer_accounts.db*
