@@ -30,10 +30,10 @@ export default function KVKSupportCard({ kvkData, reportId, lang, initialFlagged
     <div className="kvk-card">
       <div className="kvk-header">
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <Building2 size={20} style={{ color: "#34d399" }} />
+          <Building2 size={20} className="kvk-icon" />
           <div>
-            <h4 style={{ fontSize: "1rem", color: "#f8fafc" }}>{kvkName}</h4>
-            <p style={{ fontSize: "0.78rem", color: "#94a3b8" }}>{t.kvk_sub}</p>
+            <h4 className="kvk-name">{kvkName}</h4>
+            <p className="kvk-sub">{t.kvk_sub}</p>
           </div>
         </div>
 
@@ -52,14 +52,14 @@ export default function KVKSupportCard({ kvkData, reportId, lang, initialFlagged
         )}
       </div>
 
-      <div style={{ fontSize: "0.85rem", color: "#cbd5e1", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-          <MapPin size={14} style={{ color: "#94a3b8", flexShrink: 0 }} />
+      <div className="kvk-details-block">
+        <div className="kvk-detail-row">
+          <MapPin size={15} className="kvk-pin-icon" />
           <span>{kvkData.address}</span>
         </div>
 
         {kvkData.contact_person && (
-          <div style={{ fontSize: "0.82rem", color: "#94a3b8" }}>
+          <div className="kvk-officer-row">
             <strong>Officer:</strong> {kvkData.contact_person}
           </div>
         )}
@@ -78,18 +78,7 @@ export default function KVKSupportCard({ kvkData, reportId, lang, initialFlagged
         )}
 
         {kvkData.toll_free && (
-          <div
-            style={{
-              fontSize: "0.8rem",
-              background: "rgba(255,255,255,0.05)",
-              padding: "0.5rem 0.8rem",
-              borderRadius: "8px",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              color: "#94a3b8",
-            }}
-          >
+          <div className="kvk-tollfree-chip">
             <span>{t.toll_free}: <strong>{kvkData.toll_free}</strong></span>
           </div>
         )}

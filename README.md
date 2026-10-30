@@ -195,20 +195,52 @@ To test without physical diseased leaves:
 | `POST` | `/api/predict` | Multipart photo upload → PyTorch inference + advisory + geotagging |
 | `GET` | `/api/weather` | OpenWeatherMap + rule-based disease risk evaluation |
 | `GET` | `/api/reports` | Filterable field reports with district, crop, and status queries |
-| `GET` | `/api/clusters` | Spatial clustering of outbreak hotspots with severity radius |
+| `GET` | `/api/clusters` | Spatial clustering; `include_demo=true` is display-only and labels simulated fixtures |
+| `GET` | `/api/outbreak-intelligence` | 14-day, non-demo local signal with verification status |
+| `POST` | `/api/reports/{id}/follow-up` | Record farmer-reported symptoms, action and intervention cost |
+| `GET` | `/api/impact-metrics` | Aggregate self-reported follow-up data without claiming causal savings |
 | `GET` | `/api/stats` | Official dashboard KPIs (crop breakdown, disease distribution) |
 | `POST` | `/api/reports/{id}/flag-expert` | Toggle expert agronomist verification flag |
-| `PUT` | `/api/reports/{id}/status` | Update incident status (`reported`, `under_review`, `contained`) |
+| `PUT` | `/api/reports/{id}/status` | Update incident status (`reported`, `under_review`, `investigating`, `confirmed`, `rejected`, `contained`, `resolved`) |
 | `POST` | `/api/broadcast-advisory` | Simulate district-wide SMS/push advisory dispatch |
 | `GET` | `/api/iot/pest-traps` | Simulated telemetry from solar spore & pheromone traps |
 | `GET` | `/api/samples` | List of preset test leaf images for instant judging |
 
 ---
 
-## 🛡️ Agronomic Compliance & Advisory Integrity
-- All chemical fungicides and dosages conform to **Central Insecticide Board and Registration Committee (CIBRC)** approvals and **Mahatma Phule Krishi Vidyapeeth (MPKV, Rahuri)** crop protection guidelines.
-- Organic treatments focus on bio-control agents (**Trichoderma viride**, **Pseudomonas fluorescens**, **Neem Seed Kernel Extract 5%**) to minimize pesticide residues and support sustainable export-quality produce.
+## 🛡️ Agronomic Safety and Data Integrity
+- AI output is a **screening suggestion**, not a confirmed diagnosis. The bundled checkpoint does not include a held-out field-validation report, so displayed model scores must not be interpreted as real-world accuracy or calibrated probabilities.
+- The inference path no longer reads disease hints from image filenames or inflates the top score. Crop filtering only limits the candidate classes when a farmer explicitly selects a crop.
+- Reports from the bundled seed dataset are labelled `source_type=demo` and `verification_status=demo`. They are excluded from live outbreak-intelligence and dashboard totals. The map can show these fixtures only when requested, with a visible demo label.
+- Report clusters are investigation signals, not confirmed outbreaks. The system only marks a cluster as expert-supported when multiple reports have explicit expert-confirmed status.
+- The Spray-or-Wait feature does not prescribe pesticide treatment based on a photo alone. Verify diagnosis, action thresholds, registered product labels, PPE and pre-harvest intervals with a local agricultural officer/KVK before applying chemicals.
+- Follow-up and intervention costs are farmer-reported. They are useful for tracking outcomes but are not a causal estimate of crop yield saved or losses avoided.
+
+## ✨ Added in the loss-prevention update
+- Evidence-aware Spray-or-Wait decision support with uncertainty states and reasons.
+- Crop-stage capture, recent local signal summary and a separate expert verification status.
+- Duplicate image-report suppression for the same approximate location within 24 hours.
+- Follow-up ledger for symptom trajectory, action taken and intervention costs.
+- Impact metrics endpoint that explicitly distinguishes self-reported outcomes from measured impact.
 
 ---
 
 *Developed for Smart India Hackathon (SIH) Problem Statement ID 26131 &bull; Govt of Maharashtra*
+
+## 🗣️ Farm Saathi multilingual voice assistant
+- Added to the existing Farmer Portal without replacing its layout or visual design.
+- Supports typed questions and browser speech input in English (`en-IN`), Hindi (`hi-IN`) and Marathi (`mr-IN`), plus text-to-speech for assistant answers.
+- When a crop result is available, the assistant can read a spoken summary of the current screening, explain next steps, and read selected advice already displayed in the app.
+- Uses browser Web Speech APIs; microphone access requires user permission and support depends on browser/OS voice packs. Latest Chrome or Edge on desktop is recommended. Speech recognition is not supported in every browser.
+- The assistant uses a safe guided fallback when no provider is configured. To enable free-form Gemini answers, set `GEMINI_API_KEY` in the backend environment (optionally set `GEMINI_MODEL`, default `gemini-2.5-flash`) and restart FastAPI. The key stays server-side and is never sent to the browser. Provider quota/network failures fall back to guided responses.
+- On Windows PowerShell, set the key in the same terminal before starting the backend: `$env:GEMINI_API_KEY="your-key-here"` and optionally `$env:GEMINI_MODEL="gemini-2.5-flash"`, then run `python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload`. Do not commit the key or paste it into frontend files.
+- Voice and text advice remain preliminary. Do not make pesticide decisions based only on AI output; verify with local agricultural experts and registered product labels.
+
+
+## Farmer accounts (added)
+
+- Use **Sign in** in the app header to sign in or create a farmer account.
+- Registration stores the farmer's name, email, district, optional village, and preferred language.
+- Passwords are stored as salted PBKDF2-HMAC-SHA256 hashes; the server issues random bearer tokens with a 30-day expiry and supports sign-out.
+- Account records are stored in `backend/farmer_accounts.db`, separate from crop-report data. Keep this database on persistent storage when deploying. Back it up securely and do not commit it to source control.
+- The app remains usable as a guest. The current account module is for farmer profiles/session access; it does not yet link historical crop reports to an individual account or protect the government dashboard/API endpoints. Add role-based authorization before using it for a real government deployment.

@@ -46,8 +46,9 @@ export async function fetchReports({ district, crop, disease_id, status, flagged
   return res.json();
 }
 
-export async function fetchHotspotClusters(district = null, crop = null) {
+export async function fetchHotspotClusters(district = null, crop = null, includeDemo = true) {
   const params = new URLSearchParams();
+  if (includeDemo) params.append("include_demo", "true");
   if (district) params.append("district", district);
   if (crop) params.append("crop", crop);
   const res = await fetch(`${API_BASE}/api/clusters?${params.toString()}`);
@@ -102,4 +103,61 @@ export async function broadcastDistrictAdvisory(payload) {
 export async function fetchIoTTraps() {
   const res = await fetch(`${API_BASE}/api/iot/pest-traps`);
   return res.json();
+}
+
+export async function submitReportFollowUp(reportId, payload) {
+  const res = await fetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/follow-up`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "Could not save follow-up");
+  return data;
+}
+
+export async function fetchOutbreakIntelligence(district = null, crop = null, diseaseId = null) {
+  const params = new URLSearchParams();
+  if (district) params.append("district", district);
+  if (crop) params.append("crop", crop);
+  if (diseaseId) params.append("disease_id", diseaseId);
+  const res = await fetch(`${API_BASE}/api/outbreak-intelligence?${params.toString()}`);
+  if (!res.ok) throw new Error("Could not load outbreak intelligence");
+  return res.json();
+}
+
+export async function fetchImpactMetrics() {
+  const res = await fetch(`${API_BASE}/api/impact-metrics`);
+  if (!res.ok) throw new Error("Could not load impact metrics");
+  return res.json();
+}
+
+export async function askCropAssistant(payload) {
+  const res = await fetch(`${API_BASE}/api/assistant/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Assistant request failed");
+  }
+  return res.json();
+}
+
+export async function authRequest(path, payload = null, token = null, method = "POST") {
+  const headers = {};
+  if (payload) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/api/auth/${path}`, {
+    method,
+    headers,
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = Array.isArray(data.detail) ? data.detail.map((item) => item.msg).join(" ") : data.detail;
+    throw new Error(detail || "Authentication request failed. Please try again.");
+  }
+  return data;
 }

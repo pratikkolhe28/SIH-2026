@@ -83,12 +83,13 @@ export default function IncidentTable({ reports, onReportUpdated, lang }) {
               <tr key={r.id}>
                 <td style={{ fontFamily: "monospace", fontSize: "0.78rem", color: "#94a3b8" }}>
                   {r.id.slice(0, 12)}
+                  {r.source_type === "demo" && <div style={{ marginTop: "0.25rem", fontFamily: "inherit", fontSize: "0.62rem", color: "#fbbf24", background: "rgba(245, 158, 11, 0.1)", borderRadius: "4px", padding: "0.15rem 0.25rem" }}>DEMO DATA</div>}
                 </td>
                 <td style={{ fontWeight: 600 }}>{r.crop}</td>
                 <td>
                   <div style={{ fontWeight: 600 }}>{r.disease_name}</div>
                   <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-                    {Math.round(r.confidence * 100)}% confidence
+                    {Math.round(r.confidence * 100)}% model score
                   </div>
                 </td>
                 <td>
@@ -120,7 +121,11 @@ export default function IncidentTable({ reports, onReportUpdated, lang }) {
                   >
                     <option value="reported">Reported</option>
                     <option value="under_review">Under Review</option>
+                    <option value="investigating">Investigating</option>
+                    <option value="confirmed">Expert confirmed</option>
+                    <option value="rejected">Rejected / false alarm</option>
                     <option value="contained">Contained</option>
+                    <option value="resolved">Resolved</option>
                   </select>
                 </td>
                 <td>

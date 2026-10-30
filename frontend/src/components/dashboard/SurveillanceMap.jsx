@@ -102,7 +102,7 @@ export default function SurveillanceMap({
         });
 
         circle.bindTooltip(
-          `<strong>OUTBREAK HOTSPOT</strong><br/>${cluster.disease_name} (${cluster.crop || "Crop"})<br/>District: ${cluster.district}<br/>Incidents: ${count} reports`,
+          `<strong>${cluster.source_type === "demo" ? "DEMO DATA — NOT LIVE" : "SUSPECTED LOCAL SIGNAL"}</strong><br/>${cluster.disease_name} (${cluster.crop || "Crop"})<br/>District: ${cluster.district}<br/>Incidents: ${count} reports<br/>${cluster.intensity || "Requires verification"}`,
           { permanent: false, direction: "top" }
         );
 

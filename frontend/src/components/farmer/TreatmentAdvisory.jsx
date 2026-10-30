@@ -57,13 +57,13 @@ export default function TreatmentAdvisory({ advisory, lang }) {
       {/* TAB CONTENT: Organic */}
       {activeTab === "organic" && (
         <div>
-          <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginBottom: "0.85rem" }}>
+          <p className="advisory-tab-desc">
             {organic.title || "Biological and traditional bio-pesticide treatments without chemical residues."}
           </p>
           <ul className="remedies-list">
             {(organic.remedies || []).map((rem, i) => (
               <li key={i} className="remedy-item">
-                <Leaf size={18} style={{ color: "#34d399", flexShrink: 0, marginTop: "2px" }} />
+                <Leaf size={18} className="remedy-icon-organic" />
                 <span>{rem}</span>
               </li>
             ))}
@@ -74,56 +74,49 @@ export default function TreatmentAdvisory({ advisory, lang }) {
       {/* TAB CONTENT: Chemical */}
       {activeTab === "chemical" && (
         <div>
-          <div
-            style={{
-              padding: "0.65rem 0.95rem",
-              background: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid rgba(239, 68, 68, 0.25)",
-              borderRadius: "8px",
-              marginBottom: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.6rem",
-              fontSize: "0.8rem",
-              color: "#fca5a5",
-            }}
-          >
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <div className="advisory-warning-banner">
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
             <span>
               Always wear gloves & mask when spraying. Adhere strictly to the recommended Pre-Harvest Interval (PHI).
             </span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            {(chemical.medicines || []).map((med, idx) => (
-              <div key={idx} className="remedy-item chemical">
-                <FlaskConical size={20} style={{ color: "#38bdf8", flexShrink: 0, marginTop: "2px" }} />
-                <div className="chemical-details">
-                  <div className="chemical-header">
-                    <span>{med.name}</span>
-                    {med.phi_days && <span className="badge-phi">{med.phi_days}</span>}
-                  </div>
-                  <div className="chemical-meta-tags">
-                    <span><strong>{t.dosage}:</strong> {med.dosage}</span>
-                    {med.timing && <span><strong>{t.timing}:</strong> {med.timing}</span>}
+          {chemical.verified_for_region === true ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+              {(chemical.medicines || []).map((med, idx) => (
+                <div key={idx} className="remedy-item chemical">
+                  <FlaskConical size={20} className="remedy-icon-chemical" />
+                  <div className="chemical-details">
+                    <div className="chemical-header">
+                      <span>{med.name}</span>
+                      {med.phi_days && <span className="badge-phi">{med.phi_days}</span>}
+                    </div>
+                    <div className="chemical-meta-tags">
+                      <span><strong>{t.dosage}:</strong> {med.dosage}</span>
+                      {med.timing && <span><strong>{t.timing}:</strong> {med.timing}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="advisory-withheld-notice">
+              <strong>Product-specific chemical advice is withheld.</strong> This project's treatment catalogue has not been independently verified against current crop/pest registrations and local label directions. Ask your KVK/agriculture officer to confirm the product, dose, protective equipment and pre-harvest interval before use.
+            </div>
+          )}
         </div>
       )}
 
       {/* TAB CONTENT: Cultural Practices */}
       {activeTab === "cultural" && (
         <div>
-          <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginBottom: "0.85rem" }}>
+          <p className="advisory-tab-desc">
             Agronomic field hygiene and sanitation practices to break the pathogen life cycle:
           </p>
           <ul className="remedies-list">
             {(cultural || []).map((practice, i) => (
-              <li key={i} className="remedy-item" style={{ borderLeftColor: "#ca8a04" }}>
-                <Tractor size={18} style={{ color: "#facc15", flexShrink: 0, marginTop: "2px" }} />
+              <li key={i} className="remedy-item cultural">
+                <Tractor size={18} className="remedy-icon-cultural" />
                 <span>{practice}</span>
               </li>
             ))}
